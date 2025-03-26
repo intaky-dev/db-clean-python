@@ -1,4 +1,7 @@
 from odoo import models
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class LimpiarBaseWizard(models.TransientModel):
     _name = 'limpieza.base.wizard'
@@ -10,16 +13,12 @@ class LimpiarBaseWizard(models.TransientModel):
         # Ventas
         ventas = env['sale.order'].search([])
         for v in ventas:
-            if v.state != 'cancel':
-                v.action_cancel()
-
-            # Ahora que está cancelada, se pueden modificar líneas
-            for line in v.order_line:
-                line.product_uom_qty = 0
-                line.qty_delivered = 0
-                line.qty_invoiced = 0
-
-            v.unlink()
+            try:
+                if v.state != 'cancel':
+                    v.action_cancel()
+                v.with_context(force_delete=True).unlink()
+            except Exception as e:
+                _logger.warning(f'No se pudo eliminar la orden {v.name}: {e}')
 
         # Compras
         compras = env['purchase.order'].search([])

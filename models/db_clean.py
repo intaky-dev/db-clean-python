@@ -16,16 +16,31 @@ class LimpiarBaseWizard(models.TransientModel):
             try:
                 if v.state != 'cancel':
                     v.action_cancel()
-                v.with_context(force_delete=True).unlink()
+
+                for line in v.order_line:
+                    line.write({
+                        'product_uom_qty': 0,
+                        'qty_delivered': 0,
+                        'qty_invoiced': 0,
+                    })
+
+                v.order_line.unlink()
+                v.unlink()
             except Exception as e:
                 _logger.warning(f'No se pudo eliminar la orden {v.name}: {e}')
 
         # Compras
         compras = env['purchase.order'].search([])
         for c in compras:
-            if c.state != 'cancel':
-                c.button_cancel()
-            c.unlink()
+            try:
+                if c.state != 'cancel':
+                    c.button_cancel()
+                # Eliminar líneas de compra
+                c.order_line.unlink()
+                # Eliminar la orden de compra
+                c.unlink()
+            except Exception as e:
+                _logger.warning(f'No se pudo eliminar la orden de compra {c.name}: {e}')
 
         # Ajustes de inventario
         ajustes = env['stock.inventory'].search([])
@@ -48,12 +63,17 @@ class LimpiarBaseWizard(models.TransientModel):
         # Ventas desde PdV
         pos_orders = env['pos.order'].search([])
         for order in pos_orders:
-            if order.picking_id and order.picking_id.state not in ('done', 'cancel'):
-                order.picking_id.button_cancel()
-                order.picking_id.unlink()
-            if order.account_move:
-                order.account_move.button_cancel()
-                order.account_move.unlink()
-            order.unlink()
+            try:
+                if order.picking_id and order.picking_id.state not in ('done', 'cancel'):
+                    order.picking_id.button_cancel()
+                    order.picking_id.unlink()
+                if order.account_move:
+                    order.account_move.button_cancel()
+                    order.account_move.unlink()
+                # Eliminar líneas de PdV
+                order.lines.unlink()
+                order.unlink()
+            except Exception as e:
+                _logger.warning(f'No se pudo eliminar la venta PdV {order.name}: {e}')
 
         return {'type': 'ir.actions.act_window_close'}

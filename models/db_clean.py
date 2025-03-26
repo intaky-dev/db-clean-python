@@ -11,25 +11,15 @@ class LimpiarBaseWizard(models.TransientModel):
         env = self.env
 
         # Ventas
-        ventas = env['sale.order'].search([])
-        for v in ventas:
-            try:
-                if v.state != 'cancel':
-                    v.action_cancel()
+        try:
+            # Cancelar órdenes primero por si hay restricciones activas
+            env['sale.order'].search([('state', '!=', 'cancel')]).action_cancel()
 
-                for line in v.order_line:
-                    line.write({
-                        'product_uom_qty': 0,
-                        'qty_delivered': 0,
-                        'qty_invoiced': 0,
-                        'state': 'draft',
-                    })
-                    # Eliminar movimientos de stock relacionados a la línea
-                    line.procurement_ids.mapped('move_ids').unlink()
-
-                v.order_line.sudo().unlink()
-                v.unlink()
-            except Exception as e:
+            # Borrado forzado vía SQL (orden y líneas)
+            env.cr.execute("DELETE FROM sale_order_line")
+            env.cr.execute("DELETE FROM sale_order")
+        except Exception as e:
+            _logger.warning(f'Error al eliminar órdenes de venta por SQL: {e}')
                 _logger.warning(f'No se pudo eliminar la orden {v.name}: {e}')
 
         # Compras

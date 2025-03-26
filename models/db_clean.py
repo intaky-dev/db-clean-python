@@ -27,7 +27,7 @@ class LimpiarBaseWizard(models.TransientModel):
                     # Eliminar movimientos de stock relacionados a la línea
                     line.procurement_ids.mapped('move_ids').unlink()
 
-                v.order_line.unlink()
+                v.order_line.sudo().unlink()
                 v.unlink()
             except Exception as e:
                 _logger.warning(f'No se pudo eliminar la orden {v.name}: {e}')

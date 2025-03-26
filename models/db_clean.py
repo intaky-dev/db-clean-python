@@ -10,6 +10,12 @@ class LimpiarBaseWizard(models.TransientModel):
         # Ventas
         ventas = env['sale.order'].search([])
         for v in ventas:
+            # Prevenir errores al eliminar líneas: setear cantidades en 0
+            for line in v.order_line:
+                line.product_uom_qty = 0
+                line.qty_delivered = 0
+                line.qty_invoiced = 0
+
             if v.state != 'cancel':
                 v.action_cancel()
             v.unlink()

@@ -22,6 +22,7 @@ class LimpiarBaseWizard(models.TransientModel):
                         'product_uom_qty': 0,
                         'qty_delivered': 0,
                         'qty_invoiced': 0,
+                        'state': 'draft',
                     })
                     # Eliminar movimientos de stock relacionados a la línea
                     line.procurement_ids.mapped('move_ids').unlink()
